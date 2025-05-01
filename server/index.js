@@ -4,17 +4,17 @@ require('dotenv').config();
 // Schema, resolvers and sequlize
 const typeDefs = require('./graphql/schema')
 const resolvers = require('./graphql/resolvers')
-const { models } = require('./sequelize/index')
+const { models } = require('./sequelize/index') 
 
 // Server
 async function startServer(){
     const server = new ApolloServer({
         typeDefs,
         resolvers,
-        context: () => ({ models: models }) // Pass here the database model
+        context: ({ req }) => { const token = req.headers.authorization || ''; return { models, token }; } // Pass here the database model
     })
     
-    server.listen().then(({ url }) => console.log(`Server: ${url}`));
+    server.listen(4000).then(({ url }) => console.log(`Server: ${url}`));
 }
 
 startServer()

@@ -19,15 +19,19 @@ module.exports = `#graphql
 
     type AuthPayload {
         token: String
-        user: User
+    }
+
+    type ReturnMessage{
+        status: Boolean
+        message: String
     }
 
     # Read
     type Query {
         users(id: ID): [User]
-        user(id: ID!): User
+        user(token: String): Boolean
 
-        tasks(owner: ID): [Task]
+        tasks(token: String): [Task]
         task(owner: ID!): Task
     }
 
@@ -37,11 +41,11 @@ module.exports = `#graphql
         login(user: LoginInput!): AuthPayload
 
         # User
-        createUser(user: CreateUserInput!): User
+        createUser(user: CreateUserInput!): ReturnMessage
         deleteUser(user: DeleteUserInput!): Boolean
         
         # Task
-        createTask(task: CreateTaskInput!): Task
+        createTask(task: CreateTaskInput!): Boolean
         updateTask(task: UpdateTaskInput!): Boolean
         deleteTask(task: DeleteTaskInput!): Boolean
     }
@@ -70,12 +74,12 @@ module.exports = `#graphql
 
     input UpdateTaskInput{
         id: ID!
-        name: String!
-        details: String!
+        name: String
+        details: String
     }
 
     input DeleteTaskInput{
-        id: String!
+        id: ID!
     }
 
 `

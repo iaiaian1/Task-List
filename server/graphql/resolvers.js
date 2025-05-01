@@ -13,10 +13,28 @@ module.exports = {
 
             return context.models.User.findAll({ where })
         },
-        user: async (_parent, args, context) => context.models.User.findOne({ where: { id: args.id } }),
+        user: async (_parent, args, context) => {
+            // If a token is provided, let user in without login
+            if(args.token){
+                let decoded_token = jwt.verify(args.token, process.env.JWT_SECRET);
+                return decoded_token.userId ? true : false
+                // context.models.User.findOne({ where: { id: decoded_token.userId } })
+            }else if(args.id){
+                let user = await context.models.User.findOne({ where: { id: args.id } })
+                return user ? true : false
+            }
+
+        },
         
         tasks: async (_parent, args, context) => {
+            // This will be bugged since this only accepts token now instead of owner.
             let where = args.owner ? { owner: args.owner } : undefined
+
+            // If a token is provided, return tasks by owner
+            if(args.token){
+                let decoded_token = jwt.verify(args.token, process.env.JWT_SECRET);
+                where = { owner: decoded_token.userId }
+            }
 
             return context.models.Task.findAll({ where })
         },
@@ -37,24 +55,27 @@ module.exports = {
                 return 'Invalid credentials';
             }
 
-            let token = jwt.sign({ userId: userData.email }, jwt_secret, { expiresIn: '1h' });
+            let token = jwt.sign({ userId: userData.id }, jwt_secret, { expiresIn: '1h' });
 
             return {
                 token,
-                userData,
             }
         },
 
         // User mutations
         createUser: async(_parent, args, context) => {
-            let hashedPassword = await bcrypt.hash(args.user.password, 10)
-            let user = context.models.User.create({ 
-                name: args.user.name,
-                email: args.user.email,
-                password: hashedPassword
-            });
+            try {
+                let hashedPassword = await bcrypt.hash(args.user.password, 10)
+                await context.models.User.create({ 
+                    name: args.user.name,
+                    email: args.user.email,
+                    password: hashedPassword
+                });
 
-            return user
+                return { status: true, message: 'Account created successfully' };
+            } catch (error) {
+                return { status: false, message: error.errors[0].message };
+            }
         },
 
         deleteUser: async(_parent, args, context) => {
@@ -71,13 +92,20 @@ module.exports = {
 
         // Task mutations
         createTask: async(_parent, args, context) => {
-            let task = await context.models.Task.create({ 
-                name: args.task.name,
-                owner: args.task.owner,
-                details: args.task.details
-            });
+            try {
+                if(args.task.owner){
+                    let decoded_token = jwt.verify(args.task.owner, process.env.JWT_SECRET);
+                    await context.models.Task.create({ 
+                        name: args.task.name,
+                        owner: decoded_token.userId,
+                        details: args.task.details
+                    });
+                    return true;
+                }
 
-            return task
+            } catch (error) {
+                return false;
+            }
         },
 
         updateTask: async(_parent, args, context) => {
